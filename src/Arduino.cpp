@@ -1,11 +1,9 @@
 #include <Arduino.h>
 #include <DHT_U.h>
-#include <LiquidCrystal_I2C.h>
-#include <NewPing.h>
 #include <SoftwareSerial.h>
 
-#define TRIGGER_PIN1 30
-#define ECHO_PIN1 31
+#define TRIGGER_PIN1 18
+#define ECHO_PIN1 21
 #define TRIGGER_PIN2 6
 #define ECHO_PIN2 7
 #define MAX_DISTANCE 200
@@ -13,10 +11,7 @@
 #define DHTTYPE DHT22
 
 DHT dht(DHTPIN, DHTTYPE);
-SoftwareSerial arduino(34, 35);
-
-NewPing sonar1(TRIGGER_PIN1, ECHO_PIN1, MAX_DISTANCE);
-// NewPing sonar2(TRIGGER_PIN2, ECHO_PIN2, MAX_DISTANCE);
+SoftwareSerial arduino(34, 35);  // RX,TX
 
 String isWaterAvailable;
 String isFoodAvailable;
@@ -25,7 +20,7 @@ String finalData;
 int chk;
 const int relay1 = 24;
 const int relay2 = 26;
-const int relay3 = 28;
+const int relay3 = 12;
 
 float hum;
 float temp;
@@ -41,28 +36,34 @@ void kipasdanpenghangat() {  // fix
   Serial.print(temp);
   Serial.println(" Celsius");
   if (temp >= 42.00) {  // batas maksimal tertinggi : 42
-    digitalWrite(relay1, LOW);
-    digitalWrite(relay2, HIGH);
-
-  } else if (temp <= 22.00) {  // batas maksimal terendah : 22
     digitalWrite(relay1, HIGH);
-    digitalWrite(relay2, LOW);
+    digitalWrite(relay3, LOW);
+
+  } else if (temp <= 23.00) {  // batas maksimal terendah : 22
+    digitalWrite(relay1, LOW);
+    digitalWrite(relay3, HIGH);
   } else {
     digitalWrite(relay1, LOW);
-    digitalWrite(relay2, LOW);
+    digitalWrite(relay3, LOW);
   }
 }
 
 void airotomatis() {  // fix
-  distance1 = sonar1.ping_cm();
+  digitalWrite(TRIGGER_PIN1, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIGGER_PIN1, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIGGER_PIN1, LOW);
+  duration1 = pulseIn(ECHO_PIN1, HIGH);
+  distance1 = duration1 * 0.034 / 2;
   Serial.print(distance1);
   Serial.println(" cm");
   if (distance1 >= 9) {
-    digitalWrite(relay3, HIGH);
+    digitalWrite(relay2, HIGH);
     Serial.println("Air Kurang");
     isWaterAvailable = "false";
-  } else if (distance1 <= 8 && distance1 >= 1) {
-    digitalWrite(relay3, LOW);
+  } else if (distance1 <= 7 && distance1 >= 1) {
+    digitalWrite(relay2, LOW);
     Serial.println("Air tersedia");
     isWaterAvailable = "true";
   }
@@ -78,10 +79,10 @@ void statuspakan() {  // Kalibrasi
   distance2 = duration2 * 0.034 / 2;
   Serial.print(distance2);
   Serial.println(" cm");
-  if (distance2 >= 6) {
+  if (distance2 >= 10) {
     Serial.println("Pakan Kurang");
     isFoodAvailable = "false";
-  } else if (distance2 <= 5 && distance2 >= 1) {
+  } else if (distance2 <= 9 && distance2 >= 1) {
     Serial.println("Pakan tersedia");
     isFoodAvailable = "true";
   }
@@ -98,6 +99,8 @@ void setup() {
   pinMode(relay3, OUTPUT);
 
   // ultrasonik
+  pinMode(TRIGGER_PIN1, OUTPUT);
+  pinMode(ECHO_PIN1, INPUT);
   pinMode(TRIGGER_PIN2, OUTPUT);
   pinMode(ECHO_PIN2, INPUT);
 }
@@ -106,10 +109,10 @@ void loop() {
   kipasdanpenghangat();
   airotomatis();
   statuspakan();
-  finalData = String("30Cs") + "#" + String("40%") + "#" + isFoodAvailable +
-              "#" + "true" + "!";
-  // finalData = String(temp) + "#" + String(hum) + "#" + isFoodAvailable + "#"
-  // + isWaterAvailable + "!";
+  finalData = String(temp) + "#" + String(hum) + "#" + isFoodAvailable + "#" +
+              isWaterAvailable + "!";
+  // finalData = String("30.10") + "#" + String("68.80") + "#" +
+  //             String(distance2) + "#" + isWaterAvailable + "!";
   Serial.println(" ");
   Serial.print(finalData);
   arduino.print(finalData);
